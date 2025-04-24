@@ -1,0 +1,45 @@
+{% extends 'admin/base.html' %}
+
+{% block admin_content %}
+<div class="container">
+    <h1 class="h3 mb-4 text-gray-800">Modifier l'enchère</h1>
+    <form action="{{ url_for('admin.edit_auction', auction_id=auction.id) }}" method="POST">
+        <div class="mb-3">
+            <label for="product_id" class="form-label">Produit</label>
+            <select class="form-control" id="product_id" name="product_id" required>
+                {% for product in products %}
+                <option value="{{ product.id }}" {% if product.id == auction.product_id %}selected{% endif %}>
+                    {{ product.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="starting_price" class="form-label">Prix Minimum</label>
+            <input type="number" class="form-control" id="starting_price" name="starting_price" value="{{ auction.product_price }}" step="0.01" required>
+        </div>
+        <div class="mb-3">
+            <label for="token_cost_per_bid" class="form-label">Coût en jetons par enchère</label>
+            <input type="number" class="form-control" id="token_cost_per_bid" name="token_cost_per_bid" min="1" value="{{ auction.token_cost_per_bid }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="start_time" class="form-label">Date de début</label>
+            <input type="datetime-local" class="form-control" id="start_time" name="start_time" value="{{ auction.start_time.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="end_time" class="form-label">Date de fin</label>
+            <input type="datetime-local" class="form-control" id="end_time" name="end_time" value="{{ auction.end_time.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="status" class="form-label">Statut</label>
+            <select class="form-control" id="status" name="status">
+                <option value="active" {% if auction.status == 'active' %}selected{% endif %}>Active</option>
+                <option value="completed" {% if auction.status == 'completed' %}selected{% endif %}>Complétée</option>
+                <option value="inactive" {% if auction.status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+        <a href="{{ url_for('admin.auctions') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

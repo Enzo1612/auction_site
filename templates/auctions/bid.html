@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Place Bid - Auction System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>{{ auction.title }}</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <img src="{{ auction.image_url or '/static/images/placeholder.jpg' }}" alt="{{ auction.title }}" class="img-fluid rounded">
+                    </div>
+                    <div class="col-md-6">
+                        <h3>Item Details</h3>
+                        <p>{{ auction.description }}</p>
+                        
+                        <div class="mb-3">
+                            <strong>Seller:</strong> {{ auction.seller_username }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Category:</strong> {{ auction.category }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Condition:</strong> {{ auction.condition }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Starting Bid:</strong> ${{ auction.starting_bid }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Current Bid:</strong> ${{ auction.current_bid or auction.starting_bid }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Ends:</strong> {{ auction.end_date.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Time Left:</strong> <span id="timeLeft">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3>Place Your Bid</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <div class="d-flex justify-content-between">
+                        <span>Current Highest Bid:</span>
+                        <strong>${{ auction.current_bid or auction.starting_bid }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Minimum Bid Required:</span>
+                        <strong>${{ (auction.current_bid or auction.starting_bid) + 1 }}</strong>
+                    </div>
+                </div>
+                
+                <form method="POST" action="{{ url_for('auction.place_bid', auction_id=auction.id) }}">
+                    <div class="mb-3">
+                        <label for="bid_amount" class="form-label">Your Bid Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" min="{{ (auction.current_bid or auction.starting_bid) + 1 }}" class="form-control" id="bid_amount" name="bid_amount" required>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <div class="d-flex justify-content-between">
+                            <span>Your Current Balance:</span>
+                            <strong>${{ user.wallet_balance }}</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" {% if user.wallet_balance < (auction.current_bid or auction.starting_bid) + 1 %}disabled{% endif %}>
+                            Place Bid
+                        </button>
+                        
+                        {% if user.wallet_balance < (auction.current_bid or auction.starting_bid) + 1 %}
+                        <a href="{{ url_for('user.wallet') }}" class="btn btn-outline-success">Add Funds</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3>Bid History</h3>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for bid in bids %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ bid.username }}</strong>
+                            <div class="text-muted small">{{ bid.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">${{ bid.amount }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center">No bids yet. Be the first!</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Calculate time remaining until auction end
+    function updateTimeLeft() {
+        const endDate = new Date("{{ auction.end_date.isoformat() }}");
+        const now = new Date();
+        const timeDiff = endDate - now;
+        
+        if (timeDiff <= 0) {
+            document.getElementById("timeLeft").innerHTML = "Auction ended";
+            return;
+        }
+        
+        const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+        
+        document.getElementById("timeLeft").innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+    
+    // Update time left every second
+    updateTimeLeft();
+    setInterval(updateTimeLeft, 1000);
+</script>
+{% endblock %}

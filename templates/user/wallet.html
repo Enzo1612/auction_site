@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Wallet - Auction System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Wallet</h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h4>Current Balance: ${{ wallet.balance }}</h4>
+                </div>
+                
+                <h3>Add Funds</h3>
+                <form action="{{ url_for('user.add_funds') }}" method="POST">
+                    <div class="form-group">
+                        <label for="amount">Amount</label>
+                        <input type="number" class="form-control" id="amount" name="amount" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Funds</button>
+                </form>
+                
+                <hr class="my-4">
+                
+                <h3>Recent Transactions</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount</th>
+            <th>Balance</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if transactions %}
+            {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ transaction.description }}</td>
+                    <td>{% if transaction.amount < 0 %}<span class="text-danger">{{ transaction.amount }}</span>{% else %}<span class="text-success">+{{ transaction.amount }}</span>{% endif %}</td>
+                    <td>${{ transaction.balance }}</td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="4" class="text-center">No recent transactions</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+                
+                <div class="mt-3">
+                    <a href="{{ url_for('user.history') }}" class="btn btn-outline-primary">View All Transactions</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

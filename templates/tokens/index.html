@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Acheter des Jetons{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1 class="display-5 fw-bold">Acheter des Jetons</h1>
+            <p class="lead">Les jetons vous permettent de participer aux enchères sur notre plateforme.</p>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h3>Votre Portefeuille</h3>
+                    <h2 class="display-6">{{ wallet.balance }} <small class="text-muted">jetons</small></h2>
+                    <a href="{{ url_for('token.history') }}" class="btn btn-outline-primary">Voir l'historique d'achats</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for pack in packs %}
+            <div class="col">
+                <div class="card h-100 {% if pack.discount_percentage > 0 %}border-success{% endif %}">
+                    <div class="card-header bg-light">
+                        <h4 class="card-title mb-0">{{ pack.name }}</h4>
+                        {% if pack.discount_percentage > 0 %}
+                            <span class="badge bg-success">-{{ pack.discount_percentage }}%</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <h3 class="card-title display-6">{{ pack.tokens }} <small>jetons</small></h3>
+                            <p class="fs-5">{{ '%.2f'|format(pack.price) }}€</p>
+                            <p class="text-muted">{{ '%.3f'|format(pack.price_per_token) }}€ par jeton</p>
+                        </div>
+                        <form action="{{ url_for('token.purchase', pack_id=pack.id) }}" method="POST">
+                            <button type="submit" class="btn btn-primary w-100">Acheter maintenant</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="alert alert-info mt-5">
+        <h4 class="alert-heading">Comment ça marche ?</h4>
+        <p>Les jetons sont la monnaie utilisée pour participer aux enchères. Plus vous achetez de jetons en une fois, plus vous économisez grâce aux réductions sur les packs plus grands.</p>
+        <hr>
+        <p class="mb-0">Note: Le paiement est simulé dans cette version de démonstration. Aucun frais réel ne sera facturé.</p>
+    </div>
+</div>
+{% endblock %}

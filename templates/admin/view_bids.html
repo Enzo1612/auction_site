@@ -1,0 +1,39 @@
+{% extends 'admin/base.html' %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Bids for Auction: {{ auction.product_name }}</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Bids</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Bid ID</th>
+                            <th>User</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bid in bids %}
+                        <tr>
+                            <td>{{ bid.id }}</td>
+                            <td>{{ bid.user.username }}</td>
+                            <td>${{ bid.amount }}</td>
+                            <td>{{ bid.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <a href="{{ url_for('admin.auctions') }}" class="btn btn-secondary">Back to Auctions</a>
+</div>
+{% endblock %}

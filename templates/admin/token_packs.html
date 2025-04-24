@@ -1,0 +1,61 @@
+{% extends 'admin/base.html' %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Gestion des Packs de Jetons</h1>
+    
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Liste des Packs</h6>
+            <a href="{{ url_for('admin.create_token_pack') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nouveau Pack
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Jetons</th>
+                            <th>Prix (€)</th>
+                            <th>Prix/Jeton</th>
+                            <th>Réduction</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pack in packs %}
+                        <tr>
+                            <td>{{ pack.name }}</td>
+                            <td>{{ pack.tokens }}</td>
+                            <td>{{ '%.2f'|format(pack.price) }}</td>
+                            <td>{{ '%.3f'|format(pack.price_per_token) }}</td>
+                            <td>{{ pack.discount_percentage }}%</td>
+                            <td>
+                                {% if pack.is_active %}
+                                <span class="badge bg-success">Actif</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactif</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin.edit_token_pack', pack_id=pack.id) }}" class="btn btn-info btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ url_for('admin.delete_token_pack', pack_id=pack.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce pack?');">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

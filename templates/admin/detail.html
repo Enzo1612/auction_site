@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}User Details - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h2>User Details: {{ user.username }}</h2>
+        <div>
+            <a href="{{ url_for('admin.user_list') }}" class="btn btn-outline-secondary">Back to List</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Edit User Form -->
+            <div class="col-md-6">
+                <h3>Edit User Profile</h3>
+                <form action="{{ url_for('admin.update_user', user_id=user.id) }}" method="POST">                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="wallet_balance" class="form-label">Wallet Balance</label>
+                        <input type="number" class="form-control" id="wallet_balance" name="wallet_balance" value="{{ user.wallet.balance }}" step="0.01" required>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if user.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">Active</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin" {% if user.is_admin %}checked{% endif %}>
+                        <label class="form-check-label" for="is_admin">Admin</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        <small class="form-text text-muted">Leave blank if you don't want to change the password.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+                </form>
+            </div>
+
+            <!-- User Details -->
+            <div class="col-md-6">
+                <h3>Account Details</h3>
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th>User ID</th>
+                            <td>{{ user.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Wallet Balance</th>
+                            <td>${{ user.wallet.balance }}</td>
+                        </tr>
+                        <tr>
+                            <th>Account Created</th>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Last Updated</th>
+                            <td>{{ user.updated_at.strftime('%Y-%m-%d %H:%M:%S') if user.updated_at else 'Never' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="mt-4">
+                    <h3>Actions</h3>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal">
+                            Delete User
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteUserModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete user <strong>{{ user.username }}</strong>? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}">
+                    <button type="submit" class="btn btn-danger">Delete User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

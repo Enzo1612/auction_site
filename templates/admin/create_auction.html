@@ -1,0 +1,23 @@
+{% extends 'admin/base.html' %}
+
+{% block admin_content %}
+<div class="container">
+    <h1 class="h3 mb-4 text-gray-800">Create Auction for {{ product.name }}</h1>
+    <form action="{{ url_for('admin.create_auction', product_id=product.id) }}" method="POST">
+        <div class="mb-3">
+            <label for="starting_price" class="form-label">Starting Price</label>
+            <input type="number" class="form-control" id="starting_price" name="starting_price" step="0.01" required>
+        </div>
+        <div class="mb-3">
+            <label for="start_time" class="form-label">Start Time</label>
+            <input type="datetime-local" class="form-control" id="start_time" name="start_time" required>
+        </div>
+        <div class="mb-3">
+            <label for="end_time" class="form-label">End Time</label>
+            <input type="datetime-local" class="form-control" id="end_time" name="end_time" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Create Auction</button>
+        <a href="{{ url_for('admin.products') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

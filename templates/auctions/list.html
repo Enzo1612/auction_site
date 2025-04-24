@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Liste des enchères{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">Liste des enchères</h1>
+
+    <!-- Add Auction Button (Visible to Admins Only) -->
+    {% if current_user.is_admin %}
+    <div class="mb-4 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAuctionModal">
+            <i class="fas fa-plus"></i> Ajouter une enchère
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Auctions Table -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if auctions %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Produit</th>
+                                <th>Description</th>
+                                <th>Prix</th>
+                                <th>Début</th>
+                                <th>Fin</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for auction in auctions %}
+                            <tr>
+                                <td>{{ auction.id }}</td>
+                                <td>{{ auction.product_name }}</td>
+                                <td>{{ auction.product_description[:50] }}{% if auction.product_description|length > 50 %}...{% endif %}</td>
+                                <td>${{ auction.product_price }}</td>
+                                <td>{{ auction.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ auction.end_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>
+                                    {% if auction.is_active %}
+                                    <span class="badge bg-success">Actif</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactif</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('auction.detail', auction_id=auction.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i> Voir
+                                    </a>
+                                    {% if auction.is_active %}
+                                    <a href="{{ url_for('auction.detail', auction_id=auction.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-gavel"></i> Enchérir
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-center">Aucune enchère en cours actuellement.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Auction Modal (Visible to Admins Only) -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="addAuctionModal" tabindex="-1" aria-labelledby="addAuctionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('auction.create') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addAuctionModalLabel">Ajouter une enchère</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Produit</label>
+                        <select class="form-control" id="product_id" name="product_id" required>
+                            <option value="" disabled selected>Choisissez un produit</option>
+                            {% for product in products %}
+                                <option value="{{ product.id }}">{{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="product_price" class="form-label">Prix</label>
+                        <input type="number" class="form-control" id="product_price" name="product_price" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duration_days" class="form-label">Durée (jours)</label>
+                        <input type="number" class="form-control" id="duration_days" name="duration_days" min="0" max="90" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duration_hours" class="form-label">Durée (heures)</label>
+                        <input type="number" class="form-control" id="duration_hours" name="duration_hours" min="0" max="23" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Ajouter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
