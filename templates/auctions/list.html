@@ -103,6 +103,11 @@
                         <label for="duration_hours" class="form-label">Durée (heures)</label>
                         <input type="number" class="form-control" id="duration_hours" name="duration_hours" min="0" max="23" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="token_cost_per_bid" class="form-label">Coût en jetons par enchère</label>
+                        <input type="number" class="form-control" id="token_cost_per_bid" name="token_cost_per_bid" min="1" value="1" required>
+                        <small class="text-muted">Nombre de jetons que l'utilisateur doit dépenser pour placer une enchère</small>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>

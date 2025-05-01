@@ -19,7 +19,7 @@ def init_data():
             admin = User(
                 username='admin',
                 email='admin@example.com',
-                password=bcrypt.generate_password_hash('admin123').decode('utf-8'),
+                hashe_password=bcrypt.generate_password_hash('admin123').decode('utf-8'),
                 is_admin=True
             )
             db.session.add(admin)
@@ -41,7 +41,7 @@ def init_data():
             user = User(
                 username='user',
                 email='user@example.com',
-                password=bcrypt.generate_password_hash('user123').decode('utf-8')
+                hashed_password=bcrypt.generate_password_hash('user123').decode('utf-8')
             )
             db.session.add(user)
             db.session.commit()

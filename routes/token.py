@@ -1,7 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from models import db
+from models.auction import Auction
+from models.bid import Bid
+from models.product import Product
 from models.token_pack import TokenPack
+from models.transaction import Transaction
 from models.wallet import Wallet
 from models.token_purchase import TokenPurchase
 
@@ -63,20 +67,97 @@ def purchase(pack_id):
     
     return redirect(url_for('token.index'))
 
-@token_bp.route('/history', methods=['GET'])
+@token_bp.route('/history')
 @login_required
 def history():
     """
-    Afficher l'historique des achats de jetons.
+    Display the user's token transaction history.
     """
+    # Get token purchases
     purchases = TokenPurchase.query.filter_by(user_id=current_user.id).order_by(TokenPurchase.created_at.desc()).all()
+    
+    # Get token usage from bids
+    bid_token_usage = db.session.query(
+        Bid.id,
+        Bid.created_at,
+        Bid.amount,
+        Auction.id.label('auction_id'),
+        Auction.token_cost_per_bid,
+        Auction.product_name
+    ).join(
+        Auction, Bid.auction_id == Auction.id
+    ).filter(
+        Bid.user_id == current_user.id
+    ).order_by(
+        Bid.created_at.desc()
+    ).all()
+    
+    # Get token refunds - let's check if Transaction has a description field
+    # and handle both cases
+    refunds = []
+    try:
+        # If your Transaction model doesn't have a 'type' field, we'll filter differently
+        # You might need to modify this query based on your actual Transaction model structure
+        refunds = Transaction.query.filter(
+            Transaction.user_id == current_user.id,
+            Transaction.description.like('%Remboursement%')  # Assuming refund transactions have this in the description
+        ).order_by(
+            Transaction.created_at.desc()
+        ).all()
+    except Exception:
+        # If there's any error with the above query, we'll fall back to an empty list
+        refunds = []
+    
+    # Combine all activities into one timeline
+    all_activities = []
+    
+    # Add purchases
+    for purchase in purchases:
+        all_activities.append({
+            'id': purchase.id,
+            'date': purchase.created_at,
+            'type': 'purchase',
+            'tokens': purchase.tokens_amount,  # Use tokens_amount from your model
+            'amount': purchase.price_paid,
+            'description': f"Achat de {purchase.tokens_amount} jetons",
+            'product_name': None
+        })
+    
+    # Add bid token usage
+    for bid in bid_token_usage:
+        all_activities.append({
+            'id': bid.id,
+            'date': bid.created_at,
+            'type': 'bid',
+            'tokens': -bid.token_cost_per_bid,  # Negative since tokens are spent
+            'amount': bid.amount,
+            'description': f"Enchère de {bid.amount} € sur {bid.product_name}",
+            'product_name': bid.product_name
+        })
+    
+    # Add refunds
+    for refund in refunds:
+        # We need to check what fields actually exist in your Transaction model
+        token_amount = getattr(refund, 'amount', 0)
+        description = getattr(refund, 'description', "Remboursement de jetons")
+        product_name = None
+        
+        all_activities.append({
+            'id': refund.id,
+            'date': refund.created_at,
+            'type': 'refund',
+            'tokens': token_amount,  # Positive since tokens are returned
+            'amount': 0,
+            'description': description,
+            'product_name': product_name
+        })
+    
+    # Sort all activities by date, most recent first
+    all_activities.sort(key=lambda x: x['date'], reverse=True)
+    
+    # Get current wallet balance
     wallet = Wallet.query.filter_by(user_id=current_user.id).first()
     
-    if not wallet:
-        # Créer un portefeuille pour l'utilisateur s'il n'en a pas
-        wallet = Wallet(user_id=current_user.id, balance=0)
-        db.session.add(wallet)
-        db.session.commit()
-        flash("Un portefeuille a été créé pour vous.", "info")
-    
-    return render_template('tokens/history.html', purchases=purchases, wallet=wallet)
+    return render_template('tokens/history.html', 
+                          activities=all_activities, 
+                          wallet=wallet)

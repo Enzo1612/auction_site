@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="container py-5">
+    <!-- Keep your existing jumbotron -->
     <div class="jumbotron bg-light p-5 rounded">
         <h1 class="display-4">Bienvenue sur Enchères Uniques</h1>
         <p class="lead">Participez à nos enchères au centime près et gagnez des produits à des prix incroyables!</p>
@@ -17,65 +18,201 @@
         {% endif %}
     </div>
 
-    <div class="row mt-5">
-        <div class="col-md-6">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h3>Enchères en cours</h3>
+    <!-- Product Grid Section -->
+    <div class="mt-5">
+        <h2 class="mb-4 border-bottom pb-2">Parcourir les enchères actives</h2>
+        
+        <!-- Filter and Sort Options -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div class="input-group">
+                    <label class="input-group-text" for="category-filter">Catégorie</label>
+                    <select class="form-select" id="category-filter">
+                        <option value="">Toutes les catégories</option>
+                        {% for category in categories %}
+                            <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-body">
-                    {% if active_auctions %}
-                        <div class="list-group">
-                            {% for auction in active_auctions %}
-                                <a href="{{ url_for('auction.detail', auction_id=auction.id) }}" class="list-group-item list-group-item-action">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{{ auction.product.name }}</h5>
-                                        <small>Termine dans {{ (auction.end_time - now).days }} jours</small>                                    </div>
-                                    <p class="mb-1">{{ auction.product.description[:100] }}{% if auction.product.description|length > 100 %}...{% endif %}</p>
-                                    <small>{{ auction.bids.count() }} enchères</small>                                </a>
-                            {% endfor %}
-                        </div>
-                        <div class="mt-3">
-                            <a href="{{ url_for('auction.list_auctions') }}" class="btn btn-outline-primary">Voir toutes les enchères</a>
-                        </div>
-                    {% else %}
-                        <p class="text-center">Aucune enchère en cours actuellement.</p>
-                    {% endif %}
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="input-group">
+                    <label class="input-group-text" for="sort-options">Trier par</label>
+                    <select class="form-select" id="sort-options">
+                        <option value="price_asc">Prix (croissant)</option>
+                        <option value="price_desc">Prix (décroissant)</option>
+                    </select>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-6">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h3>Enchères terminées</h3>
-                </div>
-                <div class="card-body">
-                    {% if completed_auctions %}
-                        <div class="list-group">
-                            {% for item in completed_auctions %}
-                                <a href="{{ url_for('auction.detail', auction_id=item.auction.id) }}" class="list-group-item list-group-item-action">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{{ item.auction.product.name }}</h5>
-                                        <small>Terminé le {{ item.auction.end_time.strftime('%Y-%m-%d %H:%M:%S') }}</small>
-                                    </div>
-                                    <p class="mb-1">{{ item.auction.product.description[:100] }}{% if item.auction.product.description|length > 100 %}...{% endif %}</p>
-                                    <small>
-                                        {% if item.winner %}
-                                            Gagnant : {{ item.winner.username }}
-                                        {% else %}
-                                            Aucun gagnant
-                                        {% endif %}
-                                    </small>
-                                </a>
-                            {% endfor %}
+        <!-- Product Grid -->
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+            {% for auction in all_active_auctions %}
+            <div class="col product-card" data-category="{{ auction.product.category }}" data-price="{{ auction.current_price }}">
+                <div class="card h-100 shadow-sm">
+                    <!-- Product Image -->
+                    <div class="product-image-container">
+                        {% if auction.product.image_url %}
+                        <img src="{{ auction.product.image_url }}" class="card-img-top product-image" alt="{{ auction.product.name }}">
+                        {% else %}
+                        <img src="{{ url_for('static', filename='images/placeholder.jpg') }}" class="card-img-top product-image" alt="Placeholder">
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Product Info -->
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-primary">{{ auction.product.category }}</span>
+                            <span class="badge bg-warning text-dark">{{ auction.token_cost_per_bid }} jetons</span>
                         </div>
-                    {% else %}
-                        <p class="text-center">Aucune enchère terminée pour le moment.</p>
-                    {% endif %}
+                        <h5 class="card-title">{{ auction.product.name }}</h5>
+                        <p class="card-text small text-truncate">{{ auction.product.description }}</p>
+                        
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between mb-2">
+                                <div class="text-muted small">
+                                    <i class="bi bi-people-fill"></i> 
+                                    {{ auction.bids.count() }} enchères
+                                </div>
+                                <div class="text-muted small">
+                                    <i class="bi bi-clock"></i>
+                                    <span class="countdown" data-end="{{ auction.end_time.isoformat() }}">
+                                        {{ (auction.end_time - now).days }} jours
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="h5 text-primary mb-0">{{ auction.current_price }} €</div>
+                                <a href="{{ url_for('auction.detail', auction_id=auction.id) }}" class="btn btn-sm btn-outline-primary">Voir détails</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+            {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    Aucune enchère active pour le moment.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- View all link -->
+        <div class="d-flex justify-content-center mt-4">
+            <a href="{{ url_for('auction.list_auctions') }}" class="btn btn-primary">
+                Voir toutes les enchères actives
+            </a>
         </div>
     </div>
 </div>
+
+<!-- Add CSS for product grid -->
+<style>
+    .product-image-container {
+        height: 200px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa;
+    }
+    
+    .product-image {
+        object-fit: contain;
+        max-height: 100%;
+        max-width: 100%;
+    }
+    
+    .card-title {
+        height: 50px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    
+    .card-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+</style>
+
+<!-- JavaScript for filtering and sorting -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Category filter
+    const categoryFilter = document.getElementById('category-filter');
+    categoryFilter.addEventListener('change', function() {
+        const category = this.value;
+        const productCards = document.querySelectorAll('.product-card');
+        
+        productCards.forEach(card => {
+            if (!category || card.dataset.category === category) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+    
+    // Sort options
+    const sortOptions = document.getElementById('sort-options');
+    sortOptions.addEventListener('change', function() {
+        const option = this.value;
+        const productGrid = document.querySelector('.row.row-cols-1');
+        const productCards = Array.from(document.querySelectorAll('.product-card'));
+        
+        switch(option) {
+            case 'price_asc':
+                productCards.sort((a, b) => 
+                    parseFloat(a.dataset.price) - parseFloat(b.dataset.price));
+                break;
+            case 'price_desc':
+                productCards.sort((a, b) => 
+                    parseFloat(b.dataset.price) - parseFloat(a.dataset.price));
+                break;
+        }
+        
+        // Re-append cards in the new order
+        productCards.forEach(card => productGrid.appendChild(card));
+    });
+    
+    // Update countdown timers
+    function updateCountdowns() {
+        document.querySelectorAll('.countdown').forEach(el => {
+            const endTime = new Date(el.dataset.end);
+            const now = new Date();
+            const diff = endTime - now;
+            
+            if (diff <= 0) {
+                el.textContent = "Terminé";
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (days > 0) {
+                el.textContent = `${days}j ${hours}h`;
+            } else if (hours > 0) {
+                el.textContent = `${hours}h ${minutes}m`;
+            } else {
+                el.textContent = `${minutes}m`;
+            }
+        });
+    }
+    
+    // Update countdowns immediately and then every minute
+    updateCountdowns();
+    setInterval(updateCountdowns, 60000);
+});
+</script>
 {% endblock %}

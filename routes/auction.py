@@ -100,6 +100,16 @@ def bid(auction_id):
             flash("Vous avez déjà proposé ce montant pour cette enchère.", "error")
             return redirect(url_for('auction.detail', auction_id=auction_id))
 
+        # Vérifier si quelqu'un d'autre a déjà misé ce montant (pour centime-près)
+        existing_bid_from_others = Bid.query.filter_by(
+            auction_id=auction_id,
+            amount=bid_amount
+        ).first()
+        
+        if existing_bid_from_others:
+            flash("Ce montant a déjà été proposé par un autre utilisateur.", "error")
+            return redirect(url_for('auction.detail', auction_id=auction_id))
+
         # Vérifier si l'utilisateur a assez de jetons
         wallet = Wallet.query.filter_by(user_id=current_user.id).first()
         if not wallet or wallet.balance < auction.token_cost_per_bid:
@@ -110,21 +120,45 @@ def bid(auction_id):
         wallet.balance -= auction.token_cost_per_bid
 
         # Créer la nouvelle enchère
-        bid = Bid(
+        new_bid = Bid(
             auction_id=auction_id,
             user_id=current_user.id,
-            amount=bid_amount
+            amount=bid_amount,
+            created_at=datetime.utcnow()
         )
-        db.session.add(bid)
+        db.session.add(new_bid)
 
         # Enregistrer la transaction de jetons
         token_transaction = Transaction(
             user_id=current_user.id,
+            auction_id=auction_id,
+            type='bid',
             description=f"Enchère placée sur {auction.product_name} ({bid_amount}€)",
             amount=-auction.token_cost_per_bid,
-            balance=wallet.balance
+            balance=wallet.balance,
+            created_at=datetime.utcnow()
         )
         db.session.add(token_transaction)
+
+        # Mettre à jour le prix courant si c'est la plus basse enchère unique
+        # Récupérer toutes les enchères pour cette vente
+        all_bids = Bid.query.filter_by(auction_id=auction_id).all()
+        
+        # Regrouper les montants par le nombre de fois qu'ils apparaissent
+        bid_counts = {}
+        for b in all_bids:
+            if b.amount in bid_counts:
+                bid_counts[b.amount] += 1
+            else:
+                bid_counts[b.amount] = 1
+        
+        # Trouver les enchères uniques (apparaissant une seule fois)
+        unique_bids = [amount for amount, count in bid_counts.items() if count == 1]
+        
+        # Si l'enchère actuelle est unique et est inférieure au prix actuel, la définir comme nouvelle enchère gagnante
+        if bid_amount in unique_bids and (auction.current_price is None or bid_amount < auction.current_price):
+            auction.current_price = bid_amount
+            auction.current_winner_id = current_user.id
 
         db.session.commit()
         flash("Votre enchère a été placée avec succès.", "success")
@@ -151,16 +185,90 @@ def detail(auction_id):
             'wallet_balance': wallet.balance if wallet else 0
         }
     
+    # Calculate unique bids
+    bid_counts = {}
+    for b in bids:
+        if b.amount in bid_counts:
+            bid_counts[b.amount] += 1
+        else:
+            bid_counts[b.amount] = 1
+    
+    unique_bids = [amount for amount, count in bid_counts.items() if count == 1]
+    
     return render_template('auctions/detail.html', 
                           auction=auction, 
                           bids=bids,
-                          user=user)
+                          user=user,
+                          unique_bids=unique_bids)
 
 @auction_bp.route('/')
 def list_auctions():
+    """
+    List all active auctions.
+    """
     active_auctions = Auction.query.filter(
         Auction.status == 'active',
         Auction.end_time > datetime.utcnow()
     ).all()
     products = Product.query.all()  # Fetch all products
     return render_template('auctions/list.html', auctions=active_auctions, products=products)
+
+@auction_bp.route('/completed')
+def completed_auctions():
+    """
+    List completed auctions.
+    """
+    completed_auctions = Auction.query.filter(
+        Auction.status == 'completed'
+    ).order_by(Auction.end_time.desc()).all()
+    
+    return render_template('auctions/completed.html', auctions=completed_auctions)
+
+@auction_bp.route('/refund/<int:bid_id>', methods=['POST'])
+@login_required
+def refund_bid(bid_id):
+    """
+    Refund tokens for a bid (admin only or if auction is cancelled).
+    """
+    if not current_user.is_admin:
+        flash("Only administrators can issue refunds.", "error")
+        return redirect(url_for('main.home'))
+        
+    try:
+        bid = Bid.query.get_or_404(bid_id)
+        auction = Auction.query.get_or_404(bid.auction_id)
+        
+        # Check if refund is allowed (auction cancelled or admin decision)
+        if auction.status != 'cancelled' and not current_user.is_admin:
+            flash("Les remboursements ne sont autorisés que pour les enchères annulées.", "error")
+            return redirect(url_for('auction.detail', auction_id=auction.id))
+            
+        # Refund tokens to the user's wallet
+        wallet = Wallet.query.filter_by(user_id=bid.user_id).first()
+        if wallet:
+            wallet.balance += auction.token_cost_per_bid
+            
+            # Record the refund transaction
+            refund_transaction = Transaction(
+                user_id=bid.user_id,
+                auction_id=auction.id,
+                type='refund',
+                description=f"Remboursement pour enchère sur {auction.product_name}",
+                amount=auction.token_cost_per_bid,
+                balance=wallet.balance,
+                created_at=datetime.utcnow()
+            )
+            
+            db.session.add(refund_transaction)
+            db.session.commit()
+            
+            flash(f"Remboursement de {auction.token_cost_per_bid} jetons effectué avec succès.", "success")
+        else:
+            flash("Impossible de trouver le portefeuille de l'utilisateur.", "error")
+            
+        return redirect(url_for('auction.detail', auction_id=auction.id))
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erreur lors du remboursement: {str(e)}", "error")
+        return redirect(url_for('main.home'))

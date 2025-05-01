@@ -1,6 +1,9 @@
+from datetime import datetime
 from flask import Blueprint, request, redirect, url_for, render_template, flash
 from flask_login import login_required, current_user
 from models import db
+from models.auction import Auction
+from models.bid import Bid
 from models.wallet import Wallet
 from models.transaction import Transaction
 
@@ -23,7 +26,7 @@ def wallet():
     wallet = Wallet.query.filter_by(user_id=current_user.id).first()
     if not wallet:
         flash("Wallet not found! Please contact support.", "danger")
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
 
     transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).limit(5).all()
     return render_template('user/wallet.html', wallet=wallet, transactions=transactions)
@@ -58,7 +61,7 @@ def add_funds():
         wallet = Wallet.query.filter_by(user_id=current_user.id).first()
         if not wallet:
             flash("Wallet not found! Please contact support.", "danger")
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
 
         wallet.balance += amount
 
@@ -109,3 +112,47 @@ def update_profile():
         flash(f"An error occurred while updating your profile: {str(e)}", "danger")
 
     return redirect(url_for('user.profile'))
+
+@user_bp.route('/my-bids')
+@login_required
+def my_bids():
+    """
+    Display all auctions the user has bid on.
+    """
+    # Get all unique auctions the user has bid on
+    user_bids = db.session.query(Auction)\
+        .join(Bid, Bid.auction_id == Auction.id)\
+        .filter(Bid.user_id == current_user.id)\
+        .distinct()\
+        .order_by(Auction.end_time.desc())\
+        .all()
+    
+    # Separate active and completed auctions
+    active_auctions = []
+    completed_auctions = []
+    
+    for auction in user_bids:
+        if auction.status == 'active' and auction.is_active:
+            active_auctions.append(auction)
+        else:
+            completed_auctions.append(auction)
+            
+    # For each auction, get the user's bids
+    auction_bids = {}
+    for auction in user_bids:
+        bids = Bid.query.filter_by(
+            auction_id=auction.id,
+            user_id=current_user.id
+        ).order_by(Bid.created_at.desc()).all()
+        auction_bids[auction.id] = bids
+    
+    # Current datetime for countdown
+    now = datetime.utcnow()
+    
+    return render_template(
+        'user/my_bids.html',
+        active_auctions=active_auctions,
+        completed_auctions=completed_auctions,
+        auction_bids=auction_bids,
+        now=now
+    )

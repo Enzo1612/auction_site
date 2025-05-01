@@ -1,6 +1,8 @@
 import os
+import atexit
+import threading
 
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, request, Blueprint
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,12 +27,73 @@ from routes.token import token_bp
 # Import tasks
 from tasks.auction_task import check_finished_auctions
 
+# Create main blueprint - define it at the module level to ensure it exists
+main_bp = Blueprint('main', __name__)
+
+@main_bp.route('/')
+def home():
+    # Get current datetime
+    now = datetime.utcnow()
+    
+    # Get all active auctions for the product grid
+    all_active_auctions = Auction.query.filter_by(
+        status='active', 
+        is_active=True
+    ).order_by(Auction.current_price.asc()).all()
+    
+    # Get unique categories for filtering
+    categories = db.session.query(Product.category).filter(Product.category != None).distinct().order_by(Product.category).all()
+    categories = [category[0] for category in categories]
+    
+    return render_template(
+        'home.html',
+        now=now,
+        all_active_auctions=all_active_auctions,
+        categories=categories
+    )
+
+# Scheduler instance defined at module level
+scheduler = BackgroundScheduler()
+scheduler_lock = threading.Lock()  # Lock to prevent concurrent scheduler initialization
+
+def initialize_scheduler_with_app(app):
+    """Initialize the scheduler with app context"""
+    global scheduler
+    
+    with scheduler_lock:
+        if not scheduler.running:
+            with app.app_context():
+                scheduler.add_job(
+                    func=check_finished_auctions, 
+                    args=[app], 
+                    trigger="interval", 
+                    minutes=5,
+                    id='check_auctions',
+                    replace_existing=True
+                )
+                scheduler.start()
+                print("Scheduler started successfully")
+                
+                # Register shutdown
+                atexit.register(lambda: scheduler.shutdown(wait=False))
+
 def create_app():
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////' + os.path.join(os.path.dirname(os.path.abspath(__file__)), 'auction_site.db'))
     
-    # Initialize extensions
+    # Configure the database
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 
+        'sqlite:///' + os.path.join(os.path.dirname(os.path.abspath(__file__)), 'auction_site.db'))
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Secret key for session management
+    app.secret_key = os.environ.get('SECRET_KEY', 'development_key')
+    
+    # Initialize database
     db.init_app(app)
+
+    # Create database tables if they don't exist
+    with app.app_context():
+        db.create_all()
     
     # Setup Login Manager
     login_manager = LoginManager()
@@ -39,7 +102,7 @@ def create_app():
     
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return db.session.get(User, int(user_id))
     
     # Register blueprints
     app.register_blueprint(auth_bp)
@@ -47,40 +110,23 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(auction_bp)
     app.register_blueprint(token_bp)
+    app.register_blueprint(main_bp)  # Register the main blueprint
     
-    # Migrate database
+    # Setup database migrations
     migrate = Migrate(app, db)
     
-    # Setup scheduler for checking finished auctions
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(func=check_finished_auctions, args=[app], trigger="interval", minutes=5)
-    scheduler.start()
+    # Modern replacement for before_first_request
+    @app.route('/initialize-scheduler')
+    def init_scheduler_route():
+        initialize_scheduler_with_app(app)
+        return "Scheduler initialized"
     
-    @app.route('/')
-    def home():
-        active_auctions = Auction.query.filter(
-            Auction.status == 'active',
-            Auction.end_time > datetime.utcnow()  # Use end_time instead of buy_date
-        ).order_by(Auction.end_time).limit(5).all()
-
-        completed_auctions = Auction.query.filter(
-            Auction.end_time <= datetime.utcnow()  # Use end_time instead of buy_date
-        ).order_by(Auction.end_time.desc()).limit(5).all()
-
-        # Add winner information to completed auctions
-        completed_auctions_with_winners = []
-        for auction in completed_auctions:
-            winner = auction.get_winner()
-            completed_auctions_with_winners.append({
-                'auction': auction,
-                'winner': winner
-            })
-
-        return render_template('home.html', 
-                            active_auctions=active_auctions,
-                            completed_auctions=completed_auctions_with_winners,
-                            now=datetime.utcnow())
-        
+    # Instead of using before_first_request, use a regular route and then redirect
+    @app.before_request
+    def init_scheduler_before_request():
+        if not scheduler.running and request.endpoint != 'init_scheduler_route':
+            initialize_scheduler_with_app(app)
+    
     @app.context_processor
     def inject_user_wallet():
         if current_user.is_authenticated:
@@ -100,4 +146,8 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
+    # Initialize scheduler when the app starts
+    with app.app_context():
+        if not scheduler.running:
+            initialize_scheduler_with_app(app)
     app.run(debug=True)

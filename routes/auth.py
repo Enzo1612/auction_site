@@ -11,7 +11,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
         
     if request.method == 'POST':
         first_name = request.form.get('first_name')
@@ -60,7 +60,7 @@ def register():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
         
     if request.method == 'POST':
         username = request.form.get('username')
@@ -96,7 +96,7 @@ def login():
         next_page = request.args.get('next')
         if next_page:
             return redirect(next_page)
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
         
     return render_template('auth/login.html')
 
@@ -105,12 +105,12 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('home'))
+    return redirect(url_for('main.home'))
 
 @auth_bp.route('/reset-password', methods=['GET', 'POST'])
 def reset_password_request():
     if current_user.is_authenticated:
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
         
     # Here you would implement password reset request logic
     # This is just a placeholder template rendering
@@ -131,7 +131,7 @@ def reset_password_request():
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     if current_user.is_authenticated:
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
         
     # Here you would validate the token and let the user set a new password
     # This is just a placeholder

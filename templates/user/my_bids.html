@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Enchères{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">Mes Enchères</h1>
+    
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active" type="button" role="tab">
+                Enchères Actives <span class="badge bg-primary">{{ active_auctions|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab">
+                Enchères Terminées <span class="badge bg-secondary">{{ completed_auctions|length }}</span>
+            </button>
+        </li>
+    </ul>
+    
+    <div class="tab-content" id="myTabContent">
+        <!-- Active Auctions Tab -->
+        <div class="tab-pane fade show active" id="active" role="tabpanel">
+            {% if active_auctions %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for auction in active_auctions %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">{{ auction.product.name }}</h5>
+                                <span class="badge bg-primary">{{ auction.product.category }}</span>
+                            </div>
+                            
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-3">
+                                    <div>
+                                        <strong>Prix actuel:</strong> {{ auction.current_price }} €
+                                    </div>
+                                    <div>
+                                        <i class="bi bi-clock"></i>
+                                        <span class="countdown" data-end="{{ auction.end_time.isoformat() }}">
+                                            {{ (auction.end_time - now).days }} jours
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <strong>Mes enchères:</strong>
+                                    {% if auction_bids[auction.id] %}
+                                        <ul class="list-group mt-2">
+                                            {% for bid in auction_bids[auction.id][:3] %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                {{ bid.amount }} €
+                                                <span class="badge bg-secondary">{{ bid.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                                            </li>
+                                            {% endfor %}
+                                            {% if auction_bids[auction.id]|length > 3 %}
+                                            <li class="list-group-item text-center text-muted">
+                                                + {{ auction_bids[auction.id]|length - 3 }} autres enchères
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="text-muted">Aucune enchère</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="card-footer">
+                                <a href="{{ url_for('auction.detail', auction_id=auction.id) }}" class="btn btn-primary w-100">
+                                    Voir l'enchère
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    Vous n'avez pas encore participé à des enchères actives.
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Completed Auctions Tab -->
+        <div class="tab-pane fade" id="completed" role="tabpanel">
+            {% if completed_auctions %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for auction in completed_auctions %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center {% if auction.get_winner() and auction.get_winner().id == current_user.id %}bg-success text-white{% endif %}">
+                                <h5 class="card-title mb-0">{{ auction.product.name }}</h5>
+                                <span class="badge {% if auction.get_winner() and auction.get_winner().id == current_user.id %}bg-light text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ auction.product.category }}
+                                </span>
+                            </div>
+                            
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-3">
+                                    <div>
+                                        <strong>Prix final:</strong> {{ auction.current_price }} €
+                                    </div>
+                                    <div>
+                                        <strong>Terminé le:</strong><br>
+                                        {{ auction.end_time.strftime('%d/%m/%Y') }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <strong>Résultat:</strong>
+                                    {% set winner = auction.get_winner() %}
+                                    {% if winner %}
+                                        {% if winner.id == current_user.id %}
+                                            <div class="alert alert-success mt-2">
+                                                <i class="bi bi-trophy"></i> Vous avez gagné cette enchère!
+                                            </div>
+                                        {% else %}
+                                            <div class="alert alert-secondary mt-2">
+                                                Gagnant: {{ winner.username }}
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="alert alert-warning mt-2">
+                                            Aucun gagnant déterminé
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <strong>Mes enchères:</strong>
+                                    {% if auction_bids[auction.id] %}
+                                        <ul class="list-group mt-2">
+                                            {% for bid in auction_bids[auction.id][:3] %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                {{ bid.amount }} €
+                                                <span class="badge bg-secondary">{{ bid.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                                            </li>
+                                            {% endfor %}
+                                            {% if auction_bids[auction.id]|length > 3 %}
+                                            <li class="list-group-item text-center text-muted">
+                                                + {{ auction_bids[auction.id]|length - 3 }} autres enchères
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="text-muted">Aucune enchère</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="card-footer">
+                                <a href="{{ url_for('auction.detail', auction_id=auction.id) }}" class="btn btn-outline-secondary w-100">
+                                    Voir les détails
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    Vous n'avez pas encore participé à des enchères terminées.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update countdown timers
+    function updateCountdowns() {
+        document.querySelectorAll('.countdown').forEach(el => {
+            const endTime = new Date(el.dataset.end);
+            const now = new Date();
+            const diff = endTime - now;
+            
+            if (diff <= 0) {
+                el.textContent = "Terminé";
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (days > 0) {
+                el.textContent = `${days}j ${hours}h`;
+            } else if (hours > 0) {
+                el.textContent = `${hours}h ${minutes}m`;
+            } else {
+                el.textContent = `${minutes}m`;
+            }
+        });
+    }
+    
+    // Update countdowns immediately and then every minute
+    updateCountdowns();
+    setInterval(updateCountdowns, 60000);
+});
+</script>
+{% endblock %}

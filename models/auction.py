@@ -2,6 +2,7 @@ from models import db
 from datetime import datetime
 from models.bid import Bid
 from models.transaction import Transaction
+from models.user import User
 from models.wallet import Wallet
 from sqlalchemy import func, and_
 
@@ -28,16 +29,13 @@ class Auction(db.Model):
 
     def get_winner(self):
         """
-        Trouve l'enchère gagnante : montant le plus bas et unique au-dessus du prix minimum.
+        Determine the winner of the auction based on lowest unique bid.
+        Returns the User object of the winner, or None if no winner.
         """
-        # Récupérer toutes les enchères pour cette vente
-        all_bids = self.bids.all()
+        # Get all bids for this auction
+        all_bids = Bid.query.filter_by(auction_id=self.id).all()
         
-        # Si pas d'enchères, pas de gagnant
-        if not all_bids:
-            return None
-            
-        # Grouper par montant et compter
+        # Count occurrences of each bid amount
         bid_counts = {}
         for bid in all_bids:
             if bid.amount in bid_counts:
@@ -45,20 +43,22 @@ class Auction(db.Model):
             else:
                 bid_counts[bid.amount] = 1
         
-        # Filtrer les montants uniques et au-dessus du prix minimum
-        unique_bids = [amount for amount, count in bid_counts.items() 
-                      if count == 1 and amount >= self.product_price]
+        # Filter for unique bids (count = 1)
+        unique_bids = {amount: count for amount, count in bid_counts.items() if count == 1}
         
-        # S'il n'y a pas d'enchères uniques, pas de gagnant
         if not unique_bids:
-            return None
-            
-        # Trouver le montant unique le plus bas
-        lowest_unique_bid = min(unique_bids)
+            return None  # No unique bids
         
-        # Récupérer l'enchérisseur qui a proposé ce montant
-        winning_bid = self.bids.filter_by(amount=lowest_unique_bid).first()
-        return winning_bid.user if winning_bid else None
+        # Find the lowest unique bid
+        lowest_unique_bid_amount = min(unique_bids.keys())
+        
+        # Find the user who placed this bid
+        winning_bid = Bid.query.filter_by(
+            auction_id=self.id,
+            amount=lowest_unique_bid_amount
+        ).first()
+        
+        return User.query.get(winning_bid.user_id) if winning_bid else None
 
     def refund_non_winning_bidders(self):
         """
