@@ -131,12 +131,10 @@ def bid(auction_id):
         # Enregistrer la transaction de jetons
         token_transaction = Transaction(
             user_id=current_user.id,
-            auction_id=auction_id,
-            type='bid',
             description=f"Enchère placée sur {auction.product_name} ({bid_amount}€)",
             amount=-auction.token_cost_per_bid,
             balance=wallet.balance,
-            created_at=datetime.utcnow()
+            date=datetime.utcnow()
         )
         db.session.add(token_transaction)
 
@@ -250,14 +248,12 @@ def refund_bid(bid_id):
             
             # Record the refund transaction
             refund_transaction = Transaction(
-                user_id=bid.user_id,
-                auction_id=auction.id,
-                type='refund',
-                description=f"Remboursement pour enchère sur {auction.product_name}",
-                amount=auction.token_cost_per_bid,
-                balance=wallet.balance,
-                created_at=datetime.utcnow()
-            )
+            user_id=bid.user_id,
+            description=f"Remboursement pour enchère sur {auction.product_name}",
+            amount=auction.token_cost_per_bid,
+            balance=wallet.balance,
+            date=datetime.utcnow()
+        )
             
             db.session.add(refund_transaction)
             db.session.commit()
