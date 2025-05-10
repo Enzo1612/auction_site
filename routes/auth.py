@@ -111,15 +111,11 @@ def logout():
 def reset_password_request():
     if current_user.is_authenticated:
         return redirect(url_for('main.home'))
-        
-    # Here you would implement password reset request logic
-    # This is just a placeholder template rendering
     if request.method == 'POST':
         email = request.form.get('email')
         user = User.query.filter_by(email=email).first()
         
         if user:
-            # In a real app, you'd send an email here
             flash('Check your email for instructions to reset your password.', 'info')
         else:
             flash('No account found with that email.', 'warning')
@@ -132,9 +128,6 @@ def reset_password_request():
 def reset_password(token):
     if current_user.is_authenticated:
         return redirect(url_for('main.home'))
-        
-    # Here you would validate the token and let the user set a new password
-    # This is just a placeholder
     if request.method == 'POST':
         flash('Your password has been updated.', 'success')
         return redirect(url_for('auth.login'))
@@ -143,7 +136,5 @@ def reset_password(token):
 
 @auth_bp.route('/account-verification/<token>')
 def verify_account(token):
-    # This would verify a user's email
-    # Just a placeholder
     flash('Your account has been verified.', 'success')
     return redirect(url_for('auth.login'))

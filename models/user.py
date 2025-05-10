@@ -37,15 +37,15 @@ class User(db.Model, UserMixin):  # Inherit from UserMixin
     )
 
     def check_password(self, password):
-        # Si le mot de passe n'a pas de méthode spécifiée (comme c'est le cas pour l'admin créé avec init_admin.py)
+        # If the password doesn't have a method (like the admin password created with a script)
         if self.hashed_password and not self.hashed_password.startswith('pbkdf2:sha256:'):
-            # Utiliser bcrypt pour vérifier le mot de passe
+            # Use bcrypt to verify password
             from flask_bcrypt import Bcrypt
             from flask import current_app
             bcrypt = Bcrypt(current_app)
             return bcrypt.check_password_hash(self.hashed_password, password)
         else:
-            # Utiliser werkzeug pour vérifier le mot de passe
+            # Use Werkzeug to verify password
             return check_password_hash(self.hashed_password, password)
 
     def get_id(self):

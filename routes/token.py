@@ -21,7 +21,7 @@ def index():
     wallet = Wallet.query.filter_by(user_id=current_user.id).first()
     
     if not wallet:
-        # Créer un portefeuille pour l'utilisateur s'il n'en a pas
+
         wallet = Wallet(user_id=current_user.id, balance=0)
         db.session.add(wallet)
         db.session.commit()
@@ -39,14 +39,13 @@ def purchase(pack_id):
     wallet = Wallet.query.filter_by(user_id=current_user.id).first()
     
     if not wallet:
-        # Créer un portefeuille pour l'utilisateur s'il n'en a pas
+
         wallet = Wallet(user_id=current_user.id, balance=0)
         db.session.add(wallet)
         db.session.commit()
-    
-    # Simuler le paiement (en production, vous ajouteriez ici une intégration de paiement réelle)
+
     try:
-        # Enregistrer l'achat
+
         purchase = TokenPurchase(
             user_id=current_user.id,
             token_pack_id=pack.id,
@@ -54,7 +53,7 @@ def purchase(pack_id):
             price_paid=pack.price
         )
         
-        # Mettre à jour le solde du portefeuille
+
         wallet.balance += pack.tokens
         
         db.session.add(purchase)
@@ -91,21 +90,18 @@ def history():
     ).order_by(
         Bid.created_at.desc()
     ).all()
-    
-    # Get token refunds - let's check if Transaction has a description field
-    # and handle both cases
+
     refunds = []
     try:
-        # If your Transaction model doesn't have a 'type' field, we'll filter differently
-        # You might need to modify this query based on your actual Transaction model structure
+
         refunds = Transaction.query.filter(
             Transaction.user_id == current_user.id,
-            Transaction.description.like('%Remboursement%')  # Assuming refund transactions have this in the description
+            Transaction.description.like('%Remboursement%')
         ).order_by(
             Transaction.created_at.desc()
         ).all()
     except Exception:
-        # If there's any error with the above query, we'll fall back to an empty list
+
         refunds = []
     
     # Combine all activities into one timeline
@@ -117,7 +113,7 @@ def history():
             'id': purchase.id,
             'date': purchase.created_at,
             'type': 'purchase',
-            'tokens': purchase.tokens_amount,  # Use tokens_amount from your model
+            'tokens': purchase.tokens_amount,  # Use tokens_amount from model
             'amount': purchase.price_paid,
             'description': f"Achat de {purchase.tokens_amount} jetons",
             'product_name': None
@@ -137,7 +133,6 @@ def history():
     
     # Add refunds
     for refund in refunds:
-        # We need to check what fields actually exist in your Transaction model
         token_amount = getattr(refund, 'amount', 0)
         description = getattr(refund, 'description', "Remboursement de jetons")
         product_name = None

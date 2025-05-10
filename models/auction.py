@@ -69,12 +69,12 @@ class Auction(db.Model):
         for bid in self.bids.filter_by(refunded=False).all():
             # Rembourser tous les utilisateurs sauf le gagnant
             if not winner or bid.user_id != winner.id:
-                # Rembourser les jetons à l'utilisateur
+                # Refund tokens to the user
                 wallet = Wallet.query.filter_by(user_id=bid.user_id).first()
                 if wallet:
                     wallet.balance += self.token_cost_per_bid
                     
-                    # Créer une transaction pour le remboursement
+                    # Create a transacion for the refund
                     refund_transaction = Transaction(
                         user_id=bid.user_id,
                         description=f"Remboursement de jetons pour enchère non gagnante sur '{self.product_name}'",
@@ -83,7 +83,7 @@ class Auction(db.Model):
                     )
                     db.session.add(refund_transaction)
                     
-                # Marquer l'enchère comme remboursée
+                # Mark the bid as refunded
                 bid.refunded = True
                 
         db.session.commit()

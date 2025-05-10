@@ -35,11 +35,9 @@ def wallet():
 @login_required
 def history():
     transactions = Transaction.query.filter_by(user_id=current_user.id).all()
-    # Ajouter le portefeuille au contexte
     wallet = Wallet.query.filter_by(user_id=current_user.id).first()
     
     if not wallet:
-        # Créer un portefeuille si l'utilisateur n'en a pas
         wallet = Wallet(user_id=current_user.id, balance=0)
         db.session.add(wallet)
         db.session.commit()

@@ -55,12 +55,12 @@ class AuctionService:
             (success, message): Tuple avec le statut de l'opération et un message
         """
         try:
-            # Vérifier si l'enchère est active
+
             auction = Auction.query.get(auction_id)
             if not auction or not auction.is_active():
                 return False, "Cette enchère n'est pas active."
             
-            # Vérifier si l'utilisateur a assez de jetons
+
             wallet = Wallet.query.filter_by(user_id=user_id).first()
             if not wallet:
                 return False, "Portefeuille non trouvé."
@@ -68,7 +68,7 @@ class AuctionService:
             if wallet.tokens < auction.token_cost_per_bid:
                 return False, "Vous n'avez pas assez de jetons pour placer cette enchère."
             
-            # Vérifier si le montant a déjà été proposé par cet utilisateur
+
             existing_bid = Bid.query.filter_by(
                 user_id=user_id, 
                 auction_id=auction_id, 
@@ -78,14 +78,13 @@ class AuctionService:
             if existing_bid:
                 return False, "Vous avez déjà proposé ce montant pour cette enchère."
             
-            # Placer l'enchère
+            
             new_bid = Bid(
                 user_id=user_id,
                 auction_id=auction_id,
                 amount=amount_cents
             )
             
-            # Déduire les jetons du portefeuille
             wallet.use_tokens(auction.token_cost_per_bid)
             
             db.session.add(new_bid)
@@ -114,7 +113,7 @@ class AuctionService:
         
         unique_bidders = db.session.query(func.count(func.distinct(Bid.user_id))).filter_by(auction_id=auction_id).scalar()
         
-        # Compter les montants uniques
+
         unique_amounts = db.session.query(Bid.amount).filter_by(auction_id=auction_id).group_by(Bid.amount).having(func.count(Bid.id) == 1).count()
         
         return {

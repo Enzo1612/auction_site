@@ -6,106 +6,172 @@ from models.token_pack import TokenPack
 from models.token_purchase import TokenPurchase
 
 class TokenService:
+    """
+    Service class that handles token-related operations including:
+    - Token pack management
+    - Token purchases
+    - Token wallet operations
+    
+    This service centralizes token business logic away from routes.
+    """
+    
     @staticmethod
     def get_active_token_packs():
-        """Récupère les packs de jetons actifs"""
-        return TokenPack.query.filter_by(is_active=True).order_by(TokenPack.token_count).all()
+        """
+        Retrieves all active token packs, ordered by token count.
+        
+        Returns:
+            list: All active token packs sorted by token count in ascending order.
+        """
+        return TokenPack.query.filter_by(is_active=True).order_by(TokenPack.tokens).all()
     
     @staticmethod
     def get_token_pack_by_id(pack_id):
-        """Récupère un pack de jetons par son ID"""
+        """
+        Retrieves a token pack by its ID.
+        
+        Args:
+            pack_id (int): The ID of the token pack to retrieve.
+            
+        Returns:
+            TokenPack: The token pack with the specified ID, or None if not found.
+        """
         return TokenPack.query.get(pack_id)
     
     @staticmethod
     def purchase_token_pack(user_id, pack_id):
         """
-        Achète un pack de jetons pour un utilisateur
+        Processes a token pack purchase for a user.
+        This includes creating a purchase record and adding tokens to user's wallet.
         
         Args:
-            user_id: ID de l'utilisateur
-            pack_id: ID du pack de jetons
+            user_id (int): ID of the user making the purchase
+            pack_id (int): ID of the token pack being purchased
             
         Returns:
-            (success, message): Tuple avec le statut de l'opération et un message
+            tuple: (success, message) - success is a boolean indicating if the operation succeeded,
+                   message is a string with details about the result.
         """
         try:
-            # Vérifier si le pack existe et est actif
+            # Check if the pack exists and is active
             token_pack = TokenPack.query.filter_by(id=pack_id, is_active=True).first()
             if not token_pack:
-                return False, "Ce pack de jetons n'existe pas ou n'est plus disponible."
+                return False, "This token pack doesn't exist or is no longer available."
             
-            # Vérifier si l'utilisateur a un portefeuille
+            # Check if the user has a wallet
             wallet = Wallet.query.filter_by(user_id=user_id).first()
             if not wallet:
-                return False, "Portefeuille non trouvé."
+                return False, "Wallet not found."
             
-            # Créer l'achat
+            # Create the purchase record
             purchase = TokenPurchase(
                 user_id=user_id,
                 token_pack_id=pack_id,
-                total_amount=token_pack.price
+                tokens_amount=token_pack.tokens,
+                price_paid=token_pack.price
             )
             
-            # Ajouter les jetons au portefeuille
-            wallet.add_tokens(token_pack.token_count)
+            # Add tokens to the wallet
+            wallet.balance += token_pack.tokens
             
             db.session.add(purchase)
             db.session.commit()
             
-            return True, f"Vous avez acheté {token_pack.token_count} jetons pour {token_pack.format_price()}."
+            return True, f"You have purchased {token_pack.tokens} tokens for {token_pack.formatted_price()}."
             
         except Exception as e:
             db.session.rollback()
-            return False, f"Une erreur est survenue: {str(e)}"
+            return False, f"An error occurred: {str(e)}"
     
     @staticmethod
     def get_user_purchases(user_id):
-        """Récupère l'historique des achats de jetons d'un utilisateur"""
-        return TokenPurchase.query.filter_by(user_id=user_id).order_by(TokenPurchase.purchase_date.desc()).all()
+        """
+        Retrieves the token purchase history for a user.
+        
+        Args:
+            user_id (int): The ID of the user.
+            
+        Returns:
+            list: User's token purchases ordered by date, most recent first.
+        """
+        return TokenPurchase.query.filter_by(user_id=user_id).order_by(TokenPurchase.created_at.desc()).all()
     
     @staticmethod
-    def create_token_pack(token_count, price_cents, description=None):
-        """Crée un nouveau pack de jetons"""
+    def create_token_pack(name, tokens, price, discount_percentage=0, description=None):
+        """
+        Creates a new token pack with the specified parameters.
+        
+        Args:
+            name (str): The name of the token pack (e.g., "Basic Pack")
+            tokens (int): Number of tokens in the pack
+            price (float): Price of the pack in euros
+            discount_percentage (float, optional): Discount percentage. Defaults to 0.
+            description (str, optional): Description of the token pack. Defaults to None.
+            
+        Returns:
+            tuple: (success, message) - success is a boolean indicating if the operation succeeded,
+                   message is a string with details about the result.
+        """
         try:
             new_pack = TokenPack(
-                token_count=token_count,
-                price=price_cents,
-                description=description
+                name=name,
+                tokens=tokens,
+                price=price,
+                discount_percentage=discount_percentage
             )
             
             db.session.add(new_pack)
             db.session.commit()
             
-            return True, "Le pack de jetons a été créé avec succès."
+            return True, "The token pack was successfully created."
             
         except Exception as e:
             db.session.rollback()
-            return False, f"Une erreur est survenue: {str(e)}"
+            return False, f"An error occurred: {str(e)}"
             
     @staticmethod
-    def update_token_pack(pack_id, token_count=None, price_cents=None, description=None, is_active=None):
-        """Met à jour un pack de jetons"""
+    def update_token_pack(pack_id, name=None, tokens=None, price=None, discount_percentage=None, is_active=None):
+        """
+        Updates an existing token pack with the provided parameters.
+        Only updates fields that are not None.
+        
+        Args:
+            pack_id (int): ID of the token pack to update
+            name (str, optional): New name for the token pack
+            tokens (int, optional): New number of tokens
+            price (float, optional): New price
+            discount_percentage (float, optional): New discount percentage
+            is_active (bool, optional): New active status
+            
+        Returns:
+            tuple: (success, message) - success is a boolean indicating if the operation succeeded,
+                   message is a string with details about the result.
+        """
         try:
             pack = TokenPack.query.get(pack_id)
             if not pack:
-                return False, "Ce pack de jetons n'existe pas."
+                return False, "This token pack doesn't exist."
             
-            if token_count is not None:
-                pack.token_count = token_count
+            if name is not None:
+                pack.name = name
                 
-            if price_cents is not None:
-                pack.price = price_cents
+            if tokens is not None:
+                pack.tokens = tokens
                 
-            if description is not None:
-                pack.description = description
+            if price is not None:
+                pack.price = price
+                
+            if discount_percentage is not None:
+                pack.discount_percentage = discount_percentage
                 
             if is_active is not None:
                 pack.is_active = is_active
                 
+            pack.updated_at = datetime.utcnow()
             db.session.commit()
             
-            return True, "Le pack de jetons a été mis à jour avec succès."
+            return True, "The token pack was successfully updated."
             
         except Exception as e:
             db.session.rollback()
-            return False, f"Une erreur est survenue: {str(e)}"
+            return False, f"An error occurred: {str(e)}"
